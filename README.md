@@ -1,5 +1,5 @@
 
-Learn engine graphics with `Rust`.
+Learn engine renderer with `Rust`.
 
 ## Requirements
 
