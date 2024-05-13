@@ -1,10 +1,13 @@
-mod camera_controller;
-
-use bevy::prelude::*;
-use camera_controller::{CameraController, CameraControllerPlugin};
+use bevy::{
+    core_pipeline::prepass::{DeferredPrepass, DepthPrepass, MotionVectorPrepass},
+    prelude::*,
+};
+use egd::camera_controller::CameraController;
+use std::f32::consts::*;
 
 fn main() {
     App::new()
+        .insert_resource(Msaa::Off)
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "egineder".into(),
@@ -13,31 +16,10 @@ fn main() {
             }),
             ..default()
         }))
-        .add_plugins(CameraControllerPlugin)
+        .add_plugins(egd::EgdPlugins)
         .add_systems(Startup, setup)
-        .add_systems(Update, grab_mouse)
-        .add_systems(Update, exit_app)
+        .add_systems(Update, egd::exit_app)
         .run();
-}
-
-fn exit_app(keys: Res<ButtonInput<KeyCode>>, mut exit: EventWriter<bevy::app::AppExit>) {
-    if keys.just_released(KeyCode::Escape) {
-        exit.send(bevy::app::AppExit);
-    }
-}
-
-fn grab_mouse(mut window: Query<&mut Window>, mouse: Res<ButtonInput<MouseButton>>, keys: Res<ButtonInput<KeyCode>>) {
-    let mut window = window.single_mut();
-
-    if mouse.just_released(MouseButton::Left) {
-        window.cursor.visible = false;
-        window.cursor.grab_mode = bevy::window::CursorGrabMode::Locked;
-    }
-
-    if keys.just_released(KeyCode::KeyQ) {
-        window.cursor.visible = true;
-        window.cursor.grab_mode = bevy::window::CursorGrabMode::None;
-    }
 }
 
 fn setup(
@@ -52,8 +34,23 @@ fn setup(
             transform: Transform::from_xyz(0.0, 2.0, -2.0).looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
             ..default()
         },
-        CameraController::default(),
+        CameraController::first_person(),
+        // CameraController::pan_orbit(),
+        DepthPrepass,
+        MotionVectorPrepass,
+        DeferredPrepass,
     ));
+
+    cmds.spawn(DirectionalLightBundle {
+        directional_light: DirectionalLight {
+            illuminance: 15_000.,
+            shadows_enabled: true,
+            ..default()
+        },
+        transform: Transform::from_rotation(Quat::from_euler(EulerRot::ZYX, 0.0, 0.0, -FRAC_PI_4)),
+        ..default()
+    });
+
     cmds.spawn(PbrBundle {
         mesh: meshes.add(Cuboid::new(1.0, 1.0, 1.0)),
         material: materials.add(Color::rgb(2.0, 0.6, 0.9)),

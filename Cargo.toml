@@ -5,14 +5,18 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[workspace]
+members = ["crates/egd"]
+
 [dependencies]
+egd = { path = "crates/egd" }
 
 [dependencies.bevy]
-version = "0.13"
+version = "0.13.*"
 features = [
     # File formats:
     "jpeg",
-    # "shader_format_glsl",
+    # "shader_format_glsl", # Has issue: https://github.com/bevyengine/bevy/issues/13232
     # Development/Debug features:
     "dynamic_linking",
 ]
