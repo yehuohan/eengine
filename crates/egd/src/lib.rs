@@ -3,13 +3,18 @@
 use bevy::prelude::*;
 
 pub mod camera_controller;
+pub mod post_processing;
+pub mod skybox;
 
 pub struct EgdPlugins;
 
 impl PluginGroup for EgdPlugins {
     fn build(self) -> bevy::app::PluginGroupBuilder {
         let mut group = bevy::app::PluginGroupBuilder::start::<Self>();
-        group = group.add(camera_controller::CameraControllerPlugin);
+        group = group
+            .add(camera_controller::CameraControllerPlugin)
+            // .add(skybox::SkyboxPlugin)
+            .add(post_processing::PostProcessPlugin);
         return group;
     }
 }

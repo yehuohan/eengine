@@ -1,8 +1,17 @@
 use bevy::{
-    core_pipeline::prepass::{DeferredPrepass, DepthPrepass, MotionVectorPrepass},
+    asset::LoadState,
+    core_pipeline::{
+        prepass::{DeferredPrepass, DepthPrepass, MotionVectorPrepass},
+        Skybox,
+    },
     prelude::*,
+    render::render_resource::{TextureViewDescriptor, TextureViewDimension},
 };
-use egd::camera_controller::CameraController;
+use egd::{
+    camera_controller::CameraController,
+    post_processing,
+    // skybox::Skybox
+};
 use std::f32::consts::*;
 
 fn main() {
@@ -19,15 +28,25 @@ fn main() {
         .add_plugins(egd::EgdPlugins)
         .add_systems(Startup, setup)
         .add_systems(Update, egd::exit_app)
+        .add_systems(Update, asset_loaded)
         .run();
+}
+
+#[derive(Resource)]
+struct Cubemap {
+    loaded: bool,
+    handle: Handle<Image>,
 }
 
 fn setup(
     mut cmds: Commands,
     asset_server: Res<AssetServer>,
+    // mut images: ResMut<Assets<Image>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    // let skybox_handle = asset_server.load("textures/spacebox1/top.png");
+    let skybox_handle = asset_server.load("../ex.swp/bevy/assets/textures/Ryfjallet_cubemap.png");
     cmds.spawn((
         Camera3dBundle {
             camera: Camera::default(),
@@ -36,10 +55,19 @@ fn setup(
         },
         CameraController::first_person(),
         // CameraController::pan_orbit(),
+        Skybox {
+            image: skybox_handle.clone(),
+            brightness: 1000.0,
+        },
         DepthPrepass,
         MotionVectorPrepass,
         DeferredPrepass,
+        post_processing::PostProcessSettings { intensity: 0.02 },
     ));
+    cmds.insert_resource(Cubemap {
+        loaded: false,
+        handle: skybox_handle,
+    });
 
     cmds.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {
@@ -60,4 +88,30 @@ fn setup(
         scene: asset_server.load("scenes/Sponza/glTF/Sponza.gltf#Scene0"),
         ..default()
     });
+}
+
+fn asset_loaded(
+    asset_server: Res<AssetServer>,
+    mut images: ResMut<Assets<Image>>,
+    mut cubemap: ResMut<Cubemap>,
+    mut skyboxes: Query<&mut Skybox>,
+) {
+    if !cubemap.loaded && asset_server.load_state(&cubemap.handle) == LoadState::Loaded {
+        let image = images.get_mut(&cubemap.handle).unwrap();
+        // NOTE: PNGs do not have any metadata that could indicate they contain a cubemap texture,
+        // so they appear as one texture. The following code reconfigures the texture as necessary.
+        if image.texture_descriptor.array_layer_count() == 1 {
+            image.reinterpret_stacked_2d_as_array(image.height() / image.width());
+            image.texture_view_descriptor = Some(TextureViewDescriptor {
+                dimension: Some(TextureViewDimension::Cube),
+                ..default()
+            });
+        }
+
+        for mut skybox in &mut skyboxes {
+            skybox.image = cubemap.handle.clone();
+        }
+
+        cubemap.loaded = true;
+    }
 }
